@@ -245,13 +245,14 @@ def main() -> int:
                     return self.m(ids, mask)[0]
 
             onnx_path = out / "model.onnx"
+            # Fixed batch1 shapes (gate measures batch1 seq96): friendlier to
+            # shape inference than dynamic axes.
             torch.onnx.export(
                 ClsOnly(net),
                 (dummy["ids"], dummy["mask"]),
                 str(onnx_path),
                 input_names=["ids", "mask"],
                 output_names=["logits"],
-                dynamic_axes={"ids": {0: "batch"}, "mask": {0: "batch"}},
                 opset_version=17,
             )
             quantize_dynamic(
