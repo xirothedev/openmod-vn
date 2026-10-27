@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from .compositional import CompositionalDetector
-from .decision import HeuristicContextJudge, ModerationDecision
+from .decision import HeuristicContextJudge, ModerationDecision, TransformerSpanJudge
 from .matcher import LexicalMatcher
 from .normalizer import normalize
 
@@ -26,7 +26,12 @@ def _load_jsonl(path: Path) -> list[dict]:
 
 
 class CorePipeline:
-    def __init__(self, data_dir: Path | None = None):
+    def __init__(
+        self,
+        data_dir: Path | None = None,
+        encoder_dir: Path | str | None = None,
+        encoder_veto_conf: float = 0.8,
+    ):
         root = data_dir or (_repo_root() / "data")
         lexdir = root / "raw_lexicons" / "vi"
         lex: list[dict] = []
@@ -40,6 +45,8 @@ class CorePipeline:
         self.whitelist = {w["term"].lower() for w in white}
         self.detector = CompositionalDetector(rules)
         self.judge = HeuristicContextJudge()
+        self.encoder = TransformerSpanJudge(encoder_dir) if encoder_dir else None
+        self.encoder_veto_conf = encoder_veto_conf
 
     def moderate(self, text: str, policy: str = "standard_social") -> ModerationDecision:
         n = normalize(text)
@@ -49,4 +56,40 @@ class CorePipeline:
         ]
         # extra guard: if norm itself contains whitelist phrase, suppress overlapping hits
         cands = self.detector.detect(n.norm, n.align)
-        return self.judge.decide(text, n.norm, hits, cands, self.whitelist, policy)
+        decision = self.judge.decide(text, n.norm, hits, cands, self.whitelist, policy)
+        if self.encoder is not None and decision.detected_spans:
+            decision = self._encoder_veto(text, n.norm, hits, cands, decision, policy)
+        return decision
+
+    def _encoder_veto(self, text, norm, hits, cands, decision, policy) -> ModerationDecision:
+        """Drop heuristic spans the encoder clears (ALLOW, high confidence).
+
+        The encoder only vetoes — it never creates new blocks. Any encoder
+        error keeps the heuristic decision unchanged.
+        """
+        assert self.encoder is not None
+        kept_hits, kept_cands = list(hits), list(cands)
+        try:
+            for h in hits:
+                s, e = h.orig_span
+                if self._cleared(text, s, e):
+                    kept_hits.remove(h)
+            for c in cands:
+                s, e = c.orig_span
+                if self._cleared(text, s, e):
+                    kept_cands.remove(c)
+        except Exception:  # noqa: BLE001 - veto is advisory; heuristic stands on error
+            return decision
+        if len(kept_hits) == len(hits) and len(kept_cands) == len(cands):
+            return decision
+        return self.judge.decide(text, norm, kept_hits, kept_cands, self.whitelist, policy)
+
+    def _cleared(self, text: str, s: int, e: int) -> bool:
+        assert self.encoder is not None
+        phrase = text[s:e]
+        left, right = text[max(0, s - 40) : s], text[e : e + 40]
+        try:
+            label, conf, _ = self.encoder.decide_fragment(phrase, left, right, s)
+        except Exception:  # noqa: BLE001 - single-span veto failure must not break moderate()
+            return False
+        return label == "ALLOW" and conf >= self.encoder_veto_conf

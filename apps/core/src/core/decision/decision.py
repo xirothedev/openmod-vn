@@ -151,12 +151,97 @@ class TransformerSpanJudge:
             raise RuntimeError(f"TransformerSpanJudge: missing dependency: {e}") from e
         try:
             self._tokenizer = Tokenizer.from_file(str(self.model_dir / "tokenizer.json"))
+            if self._tokenizer.token_to_id("[SEP]") is not None:
+                self._cls_id, self._sep_id, self._pad_id = (
+                    self._tokenizer.token_to_id("[CLS]"),
+                    self._tokenizer.token_to_id("[SEP]"),
+                    self._tokenizer.token_to_id("[PAD]"),
+                )
+            else:
+                self._cls_id, self._sep_id, self._pad_id = (
+                    self._tokenizer.token_to_id("<s>"),
+                    self._tokenizer.token_to_id("</s>"),
+                    self._tokenizer.token_to_id("<pad>"),
+                )
             self._session = ort.InferenceSession(
                 str(self.model_dir / "model.int8.onnx"),
                 providers=["CPUExecutionProvider"],
             )
         except Exception as e:
             raise RuntimeError(f"TransformerSpanJudge: load failed: {e}") from e
+
+    def _encode_fragment(
+        self, phrase: str, left: str, right: str, seq_max: int = 96
+    ) -> tuple[list[int], list[int], list[tuple[int, int]], list[int]]:
+        """Mirror training encoding: `[CLS] phrase [SEP] left [SEP] right [SEP]`.
+
+        Returns (ids, mask, offsets, seg_id) where offsets are char offsets
+        *within the joined fragment string* and seg_id marks phrase tokens (1).
+        """
+        parts = [(phrase, 0), (left, len(phrase) + 6), (right, len(phrase) + 6 + len(left) + 6)]
+        ids, offsets, seg_id = [self._cls_id], [(0, 0)], [0]
+        for text, base in parts:
+            enc = self._tokenizer.encode(text, add_special_tokens=False)
+            ids += enc.ids
+            offsets += [(base + s, base + e) for s, e in enc.offsets]
+            seg_id += [1 if base == 0 else 0] * len(enc.ids)
+            ids.append(self._sep_id)
+            offsets.append((0, 0))
+            seg_id.append(0)
+        ids, offsets, seg_id = ids[:seq_max], offsets[:seq_max], seg_id[:seq_max]
+        mask = [1] * len(ids)
+        pad = seq_max - len(ids)
+        return ids + [self._pad_id] * pad, mask + [0] * pad, offsets, seg_id
+
+    def decide_fragment(
+        self,
+        phrase: str,
+        left: str,
+        right: str,
+        phrase_start: int = 0,
+        policy: str = "standard_social",
+    ) -> tuple[str, float, list[tuple[int, int]]]:
+        """Judge one training-format fragment.
+
+        Returns (label, confidence, spans) with spans in original-text coords
+        (phrase-segment BIO tags shifted by phrase_start).
+        """
+        self._load()
+        try:
+            import numpy as np
+
+            ids, mask, offsets, seg_id = self._encode_fragment(phrase, left, right)
+            cls_logits, bio_logits = self._session.run(
+                None,
+                {
+                    "ids": np.array([ids], dtype=np.int64),
+                    "mask": np.array([mask], dtype=np.int64),
+                },
+            )
+            cls_logits = cls_logits[0]
+            top = max(cls_logits)
+            exps = [math.exp(float(v) - float(top)) for v in cls_logits]
+            total = sum(exps)
+            best = max(range(3), key=lambda i: exps[i])
+            tags = [
+                int(max(range(3), key=lambda c: bio_logits[0][i][c])) for i in range(len(offsets))
+            ]
+            frag_spans = self._bio_spans("", offsets, tags)
+            spans = [
+                (phrase_start + s, phrase_start + e)
+                for s, e in frag_spans
+                if self._in_phrase(offsets, tags, s, e, seg_id)
+            ]
+            return self.CLS_LABELS[best], exps[best] / total, spans
+        except Exception as e:
+            raise RuntimeError(f"TransformerSpanJudge: inference failed: {e}") from e
+
+    @staticmethod
+    def _in_phrase(offsets, tags, s, e, seg_id) -> bool:
+        return any(
+            seg_id[i] == 1 and offsets[i][0] >= s and offsets[i][1] <= e
+            for i in range(len(offsets))
+        )
 
     def decide(self, text: str, policy: str = "standard_social") -> ModerationDecision:
         self._load()
@@ -235,7 +320,9 @@ class TransformerSpanJudge:
             prev = e
         if start is not None:
             spans.append((start, prev))
-        return [(s, e) for s, e in spans if 0 <= s < e <= len(text)]
+        if text:
+            return [(s, e) for s, e in spans if 0 <= s < e <= len(text)]
+        return [(s, e) for s, e in spans if 0 <= s < e]
 
 
 class LLMDecisionJudge:

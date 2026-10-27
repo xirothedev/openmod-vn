@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import types
+from typing import ClassVar
 
 import pytest
 
@@ -17,13 +18,18 @@ class FakeEncoding:
 
 
 class FakeTokenizer:
+    IDS: ClassVar = {"[CLS]": 101, "[SEP]": 102, "[PAD]": 0}
+
     def __init__(self, ids, offsets):
         self._ids = ids
         self._offsets = offsets
 
-    def encode(self, text):
+    def encode(self, text, add_special_tokens=True):
         assert isinstance(text, str)
         return FakeEncoding(self._ids, self._offsets)
+
+    def token_to_id(self, token):
+        return self.IDS.get(token)
 
 
 class FakeSession:
