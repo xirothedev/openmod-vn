@@ -18,11 +18,12 @@ def pipe() -> CorePipeline:
 
 class ModerateIn(BaseModel):
     text: str
+    policy: str = "standard_social"
 
 
 @app.post("/moderate")
 def moderate(body: ModerateIn):
-    return pipe().moderate(body.text).model_dump()
+    return pipe().moderate(body.text, body.policy).model_dump()
 
 
 @app.get("/health")

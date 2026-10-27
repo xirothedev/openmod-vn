@@ -27,9 +27,29 @@ def test_compositional_benign_allowed():
 
 
 def test_compositional_toxic_flagged():
-    d = pipe().moderate("Đi chăn rau sạch khu Cầu Giấy tối nay không?")
+    d = pipe().moderate("Đi chăn rau khu Cầu Giấy, cho xin số điện thoại em nhé?")
     assert d.action in ("WARN", "BLOCK", "MASK")
     assert any(s.is_compositional for s in d.detected_spans)
+
+
+def test_bare_phrase_no_indicators_allowed():
+    # bare "chăn rau" with neither toxic nor positive context stays below threshold
+    d = pipe().moderate("Hôm qua chăn rau xong về nhà.")
+    assert d.action == "ALLOW"
+
+
+def test_policy_kid_safe_stricter():
+    d_std = pipe().moderate("Loại mặt dày như mày ai cũng ghét.", policy="standard_social")
+    d_kid = pipe().moderate("Loại mặt dày như mày ai cũng ghét.", policy="kid_safe")
+    order = {"ALLOW": 0, "MASK": 1, "WARN": 2, "BLOCK": 3, "ESCALATE": 4}
+    assert order[d_kid.action] >= order[d_std.action]
+
+
+def test_policy_relaxed_gaming_lenient():
+    d_std = pipe().moderate("Loại mặt dày như mày ai cũng ghét.", policy="standard_social")
+    d_rel = pipe().moderate("Loại mặt dày như mày ai cũng ghét.", policy="relaxed_gaming")
+    order = {"ALLOW": 0, "MASK": 1, "WARN": 2, "BLOCK": 3, "ESCALATE": 4}
+    assert order[d_rel.action] <= order[d_std.action]
 
 
 def test_context_dependent_benign():

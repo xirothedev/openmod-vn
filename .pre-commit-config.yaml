@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^data/.*\.jsonl$
+      - id: end-of-file-fixer
+        exclude: ^data/.*\.jsonl$
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=2500"]
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff check
+        entry: bash -c 'cd apps/core && uv run ruff check src tests ../../scripts'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: validate-datasets
+        name: validate datasets
+        entry: python3 scripts/validate_datasets.py
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: pytest apps/core
+        entry: bash -c 'cd apps/core && uv run pytest -q'
+        language: system
+        pass_filenames: false
+        always_run: true

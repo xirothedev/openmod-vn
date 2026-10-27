@@ -82,14 +82,14 @@ class CompositionalDetector:
 
     @staticmethod
     def _score(norm: str, rule: dict) -> float:
-        base = 0.5
+        base = 0.3
         low = norm.lower()
         for t in rule.get("toxic_context_indicators", []):
             if t.lower() in low:
-                base += 0.25
+                base += 0.35
                 break
         for t in rule.get("positive_context_indicators", []):
             if t.lower() in low:
-                base -= 0.4
+                base -= 0.25
                 break
         return max(0.0, min(1.0, base))
