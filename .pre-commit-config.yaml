@@ -8,7 +8,8 @@ repos:
         exclude: ^data/.*\.jsonl$
       - id: check-yaml
       - id: check-added-large-files
-        args: ["--maxkb=2500"]
+        # data/ versions training rows as product (l3_vi.jsonl ~5MB); keep cap tight otherwise
+        args: ["--maxkb=6000"]
   - repo: local
     hooks:
       - id: ruff

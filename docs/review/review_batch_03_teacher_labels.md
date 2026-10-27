@@ -10,13 +10,13 @@ purpose: validator gates `data/**/*.jsonl`, UNREVIEWED rows must not sit under `
 Counts (train 8844 / dev 1106): CLEAN 5181/670, OFFENSIVE 1263/139, HATE 2400/297.
 Zero UNKNOWN. 692 CLEAN rows carry spans. 33 HATE/OFFENSIVE rows have no spans.
 
-## Slice decisions (reply ACCEPT / DROP / HOLD per slice)
+## Slice decisions (approved 2026-10-27, built as `data/l3_vi.jsonl`, 9771 rows)
 
-- [ ] S1 CLEAN no-span (4489 rows) → ACCEPT as ALLOW. Proposal: ACCEPT.
-- [ ] S2 HATE/OFFENSIVE with spans (3630 rows) → ACCEPT pending spot-checks below. Proposal: ACCEPT.
-- [ ] S3 CLEAN with spans (692 rows) → spans on CLEAN rows are suspect. Proposal: STRIP spans, keep ALLOW.
-- [ ] S4 HATE/OFFENSIVE no-span (33 rows) → weak rows, no span signal. Proposal: DROP.
-- [ ] S5 political content (e.g. `t5_00201` phản động) → policy-sensitive. Proposal: HOLD for policy call.
+- [x] S1 CLEAN no-span (4489 rows) → ACCEPTED as ALLOW.
+- [x] S2 HATE/OFFENSIVE with spans (3630 rows) → ACCEPTED.
+- [x] S3 CLEAN with spans (692 rows) → ACCEPTED with spans stripped, kept ALLOW.
+- [x] S4 HATE/OFFENSIVE no-span (33 rows, 32 after S5 filter) → DROPPED.
+- [ ] S5 political content (147 rows held in `~/.cache/openmod-review/l3_s5_held.jsonl`) → HOLD for policy call.
 
 ## Spot-checks (reply approve/reject per line)
 
