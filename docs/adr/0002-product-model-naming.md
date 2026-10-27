@@ -12,9 +12,9 @@ for code). Earlier candidates: VinaShield, CompoxGuard, LexiJudge, VnToxicGraph,
 
 - Ecosystem (repo, dataset, SDK): keep `openmod-vn` / OpenModVN. Descriptive,
   international, already released (v0.1.0).
-- Model card name: `CompoxGuard-vi`. Distinctive, searchable, names our specialty
-  (compositional toxicity + judge); VinaShield too generic, VnToxicGraph too narrow,
-  LexiJudge collides with the L3-judge concept.
+- Model card name: `ViGuard-X` (X = XLM-R base). Short, international, architecture-hinting;
+  Vietnamese alternatives considered (Chắn/Gác/Lọc — strong but risk tone issues in EN contexts),
+  CompoxGuard-vi kept as product-line name if a compositional-focused sibling lands.
 - Videberta weights: stay eval-only. No prod use until Fsoft-AIC declares a weights
   license on the HF card. Revisit only if videberta becomes the primary encoder.
 
