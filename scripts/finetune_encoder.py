@@ -357,6 +357,8 @@ def main() -> int:
             print(f"bakeoff: export SKIP ({type(e).__name__}: {str(e)[:120]})")
 
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    tok.save_pretrained(str(out))
+    print(f"bakeoff: tokenizer saved to {out}")
     return 0
 
 
