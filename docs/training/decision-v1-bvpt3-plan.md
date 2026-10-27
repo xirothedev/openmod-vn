@@ -122,6 +122,15 @@ heuristic still decides); collect diffs → hard negatives → v2. Gate 15ms sta
   (added `temperature` to judge + pipeline) fit on held-out eval, not retrain alone.
 - v2 retrain: xlm-r on 9918 rows (S5 included), then fit T + re-bench clean.
 
+## 9. v2 + calibration results (2026-10-28)
+
+- v2 xlm-r (9918 rows): MF1 0.8214, int8 p99 15.84ms CPU b1/s96 (near gate).
+- Threshold fit (`scripts/fit_thresholds.py`, ViHSD half/half): best fit T=1.5 τ=0.5
+  F1 0.349 → report half F1 0.324 (P 0.233, R 0.531). T=1.0 τ=0.5 was F1 0.332.
+- Verdict: temperature helps modestly; no point is auto-block safe (P ≤ 0.38 everywhere
+  with R > 0.25). Shadow sidecar stands. Fitted live point on record: T=1.5, τ=0.5.
+- Next levers: diverse data + reviewed hard negatives + multi-label heads (v3).
+
 ## 5. Done criteria v1
 
 - `data/l3_vi.jsonl` có review, validator xanh, 17 tests + ruff sạch.
