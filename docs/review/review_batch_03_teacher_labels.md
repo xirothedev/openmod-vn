@@ -16,7 +16,7 @@ Zero UNKNOWN. 692 CLEAN rows carry spans. 33 HATE/OFFENSIVE rows have no spans.
 - [x] S2 HATE/OFFENSIVE with spans (3630 rows) → ACCEPTED.
 - [x] S3 CLEAN with spans (692 rows) → ACCEPTED with spans stripped, kept ALLOW.
 - [x] S4 HATE/OFFENSIVE no-span (33 rows, 32 after S5 filter) → DROPPED.
-- [ ] S5 political content (147 rows held in `~/.cache/openmod-review/l3_s5_held.jsonl`) → HOLD for policy call.
+- [x] S5 political content (147 rows) → APPROVED 2026-10-28, merged into `data/l3_vi.jsonl` (9918 rows).
 
 ## Spot-checks (reply approve/reject per line)
 

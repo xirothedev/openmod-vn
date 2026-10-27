@@ -38,6 +38,11 @@ def main() -> int:
     ap.add_argument("--mirror", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--hold-out", required=True)
+    ap.add_argument(
+        "--allow-held",
+        action="store_true",
+        help="approved: include S5 political rows (review batch 03)",
+    )
     a = ap.parse_args()
 
     mirror = Path(a.mirror).expanduser()
@@ -59,6 +64,9 @@ def main() -> int:
             dropped += 1  # S4
 
     out = Path(a.out)
+    if a.allow_held:
+        kept += held
+        held = []
     with open(out, "w", encoding="utf-8") as f:
         f.writelines(
             json.dumps(
