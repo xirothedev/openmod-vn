@@ -1,0 +1,15 @@
+{
+  "name": "nestjs-message-guard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenMod-VN example: NestJS backend guard blocking toxic chat messages",
+  "scripts": {
+    "demo": "bun src/demo.ts",
+    "demo:remote": "MODERATION_MODE=REMOTE_API bun src/demo.ts",
+    "typecheck": "bunx tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

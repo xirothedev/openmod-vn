@@ -14,3 +14,4 @@ Ubiquitous language for openmod-vn. Implementation details live in code and ADRs
 | Encoder label | L3 encoder output: `BLOCK \| BORDERLINE \| ALLOW` plus spans. Heuristic maps it to Decision. |
 | Scunthorpe defense | Whitelist check that stops substring matches inside clean words. |
 | Policy profile | Preset thresholds per surface (`kid_safe`, `standard_social`, `relaxed_gaming`). |
+| Filter classifier | Binary full-text head (`CLEAN \| TOXIC` + severity) for block/pass use cases. Maps from Encoder label (`ALLOW→CLEAN`, `BORDERLINE\|BLOCK→TOXIC`). Trains on `data/classifier_vi.jsonl`, ships shadow first. |
