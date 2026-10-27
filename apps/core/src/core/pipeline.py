@@ -31,6 +31,7 @@ class CorePipeline:
         data_dir: Path | None = None,
         encoder_dir: Path | str | None = None,
         encoder_veto_conf: float = 0.8,
+        encoder_flag_conf: float = 0.7,
     ):
         root = data_dir or (_repo_root() / "data")
         lexdir = root / "raw_lexicons" / "vi"
@@ -47,6 +48,7 @@ class CorePipeline:
         self.judge = HeuristicContextJudge()
         self.encoder = TransformerSpanJudge(encoder_dir) if encoder_dir else None
         self.encoder_veto_conf = encoder_veto_conf
+        self.encoder_flag_conf = encoder_flag_conf
 
     def moderate(self, text: str, policy: str = "standard_social") -> ModerationDecision:
         n = normalize(text)
@@ -57,9 +59,31 @@ class CorePipeline:
         # extra guard: if norm itself contains whitelist phrase, suppress overlapping hits
         cands = self.detector.detect(n.norm, n.align)
         decision = self.judge.decide(text, n.norm, hits, cands, self.whitelist, policy)
-        if self.encoder is not None and decision.detected_spans:
-            decision = self._encoder_veto(text, n.norm, hits, cands, decision, policy)
+        if self.encoder is not None:
+            if decision.detected_spans:
+                decision = self._encoder_veto(text, n.norm, hits, cands, decision, policy)
+            else:
+                flagged = self._encoder_flag(text, policy)
+                if flagged is not None:
+                    decision = flagged
         return decision
+
+    def _encoder_flag(self, text: str, policy: str) -> ModerationDecision | None:
+        """Flag text the heuristic missed when the encoder is confident.
+
+        Whole text judged as phrase (short social texts resemble training
+        fragments). Returns None to keep heuristic ALLOW.
+        """
+        assert self.encoder is not None
+        try:
+            enc_decision = self.encoder.decide(text, policy)
+        except Exception:  # noqa: BLE001 - recall flag is advisory; heuristic stands
+            return None
+        if enc_decision.action == "ALLOW":
+            return None
+        if enc_decision.confidence < self.encoder_flag_conf:
+            return None
+        return enc_decision
 
     def _encoder_veto(self, text, norm, hits, cands, decision, policy) -> ModerationDecision:
         """Drop heuristic spans the encoder clears (ALLOW, high confidence).

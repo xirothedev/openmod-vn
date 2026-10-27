@@ -26,6 +26,8 @@ class FakeTokenizer:
 
     def encode(self, text, add_special_tokens=True):
         assert isinstance(text, str)
+        if text == "":
+            return FakeEncoding([], [])
         return FakeEncoding(self._ids, self._offsets)
 
     def token_to_id(self, token):
@@ -72,7 +74,9 @@ def test_block_with_span(monkeypatch):
     install_fake(
         monkeypatch,
         cls_logits=[[0.1, 0.2, 2.0]],
-        bio_logits=[[[0.9, 0.05, 0.05], [0.1, 0.8, 0.1], [0.1, 0.2, 0.7]]],
+        bio_logits=[
+            [[0.9, 0.05, 0.05]] * 2 + [[0.1, 0.8, 0.1], [0.1, 0.2, 0.7]] + [[0.9, 0.05, 0.05]] * 3
+        ],
         ids=[1, 2, 3],
         offsets=[(0, 3), (4, 7), (7, 10)],
     )

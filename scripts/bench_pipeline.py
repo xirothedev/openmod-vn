@@ -34,12 +34,17 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Benchmark veto hybrid vs heuristic")
     ap.add_argument("--encoder-dir", default=None)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--flag-conf", type=float, default=0.7)
     a = ap.parse_args()
 
     from core.pipeline import CorePipeline
 
     base = CorePipeline()
-    hybrid = CorePipeline(encoder_dir=a.encoder_dir) if a.encoder_dir else None
+    hybrid = (
+        CorePipeline(encoder_dir=a.encoder_dir, encoder_flag_conf=a.flag_conf)
+        if a.encoder_dir
+        else None
+    )
     rows = load_bench()
     if a.limit:
         rows = rows[: a.limit]

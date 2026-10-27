@@ -224,7 +224,8 @@ class TransformerSpanJudge:
             total = sum(exps)
             best = max(range(3), key=lambda i: exps[i])
             tags = [
-                int(max(range(3), key=lambda c: bio_logits[0][i][c])) for i in range(len(offsets))
+                int(max(range(3), key=lambda c: bio_logits[0][i][c]))
+                for i in range(min(len(offsets), len(bio_logits[0])))
             ]
             frag_spans = self._bio_spans("", offsets, tags)
             spans = [
@@ -248,9 +249,7 @@ class TransformerSpanJudge:
         try:
             import numpy as np
 
-            enc = self._tokenizer.encode(text)
-            ids = enc.ids[:96] + [0] * max(0, 96 - len(enc.ids))
-            mask = [1] * min(len(enc.ids), 96) + [0] * max(0, 96 - len(enc.ids))
+            ids, mask, offsets, _seg = self._encode_fragment(text, "", "")
             cls_logits, bio_logits = self._session.run(
                 None,
                 {
@@ -266,9 +265,9 @@ class TransformerSpanJudge:
             confidence = exps[best] / total
             label = self.CLS_LABELS[best]
             severity = self.SEVERITY[label]
-            offsets = enc.offsets[:96]
             tags = [
-                int(max(range(3), key=lambda c: bio_logits[0][i][c])) for i in range(len(offsets))
+                int(max(range(3), key=lambda c: bio_logits[0][i][c]))
+                for i in range(min(len(offsets), len(bio_logits[0])))
             ]
         except Exception as e:
             raise RuntimeError(f"TransformerSpanJudge: inference failed: {e}") from e
