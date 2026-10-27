@@ -12,10 +12,10 @@ Discord use case: delete toxic messages and reply with a warning.
 ## Run
 
 ```bash
-npm install -g tsx
-tsx src/demo.ts
-MODERATION_MODE=REMOTE_API tsx src/demo.ts
-DISCORD_TOKEN=xxx tsx src/bot.ts
+bun install
+bun run demo
+MODERATION_MODE=REMOTE_API bun run demo
+DISCORD_TOKEN=xxx bun run bot
 ```
 
 Demo runs 6 cases x 3 policies and prints lexicon/rules counts plus `l3_vi`

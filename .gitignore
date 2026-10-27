@@ -6,3 +6,4 @@ dist/
 .venv/
 .firecrawl/
 data/_staging/
+node_modules/

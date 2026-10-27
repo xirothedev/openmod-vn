@@ -13,9 +13,9 @@ Backend use case: block toxic chat messages before they reach other users.
 ## Run
 
 ```bash
-npm install -g tsx
-tsx src/demo.ts
-MODERATION_MODE=REMOTE_API MODERATION_API_URL=http://localhost:8000 tsx src/demo.ts
+bun install
+bun run demo
+MODERATION_MODE=REMOTE_API bun run demo
 ```
 
 Demo runs 6 cases x 3 policies (`standard_social`, `kid_safe`, `relaxed_gaming`)
