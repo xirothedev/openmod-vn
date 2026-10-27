@@ -102,6 +102,7 @@ def main() -> int:
     ap.add_argument("--eval-frac", type=float, default=0.1)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--skip-export", action="store_true")
+    ap.add_argument("--export-only", action="store_true")
     a = ap.parse_args()
 
     import torch
@@ -179,31 +180,39 @@ def main() -> int:
 
     best, best_state = -1.0, None
     step = 0
-    for ep in range(a.epochs):
-        net.train()
-        for bi, (ids, mask, tags, labs) in enumerate(batchify(train_rows, True)):
-            with torch.cuda.amp.autocast(enabled=(device == "cuda")):
-                logits, bio = net(ids, mask)
-                loss = (
-                    ce(logits, labs) + ce(bio.view(-1, 3), tags.view(-1))
-                ) / a.grad_accum
-            scaler.scale(loss).backward()
-            if (bi + 1) % a.grad_accum == 0:
-                scaler.unscale_(opt)
-                nn.utils.clip_grad_norm_(net.parameters(), 1.0)
-                scaler.step(opt)
-                scaler.update()
-                opt.zero_grad()
-                step += 1
-        mf1, f1s, acc = evaluate()
-        print(
-            f"bakeoff: epoch={ep + 1} mf1={mf1:.4f} f1={f1s} acc={acc:.4f}", flush=True
-        )
-        if mf1 > best:
-            best = mf1
-            best_state = {k: v.cpu() for k, v in net.state_dict().items()}
+    if a.export_only:
+        best_state = torch.load(out / "best.pt", map_location="cpu", weights_only=True)
+        net.load_state_dict({k: v.to(device) for k, v in best_state.items()})
+        print("bakeoff: export-only, loaded best.pt")
+    else:
+        for ep in range(a.epochs):
+            net.train()
+            for bi, (ids, mask, tags, labs) in enumerate(batchify(train_rows, True)):
+                with torch.cuda.amp.autocast(enabled=(device == "cuda")):
+                    logits, bio = net(ids, mask)
+                    loss = (
+                        ce(logits, labs) + ce(bio.view(-1, 3), tags.view(-1))
+                    ) / a.grad_accum
+                scaler.scale(loss).backward()
+                if (bi + 1) % a.grad_accum == 0:
+                    scaler.unscale_(opt)
+                    nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+                    scaler.step(opt)
+                    scaler.update()
+                    opt.zero_grad()
+                    step += 1
+            mf1, f1s, acc = evaluate()
+            print(
+                f"bakeoff: epoch={ep + 1} mf1={mf1:.4f} f1={f1s} acc={acc:.4f}",
+                flush=True,
+            )
+            if mf1 > best:
+                best = mf1
+                best_state = {k: v.cpu() for k, v in net.state_dict().items()}
 
-    torch.save(best_state, out / "best.pt")
+        torch.save(best_state, out / "best.pt")
+        net.load_state_dict({k: v.to(device) for k, v in best_state.items()})
+
     mf1, f1s, acc = evaluate()
     metrics = {
         "model": a.model,
