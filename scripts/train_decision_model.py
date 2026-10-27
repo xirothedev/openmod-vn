@@ -21,23 +21,23 @@ JUDGE_SWAP = "Qwen/Qwen3-4B"
 
 
 def check() -> int:
-    n_rules = sum(
-        1
-        for _ in open(
-            ROOT / "data/compositional/vi_compositional_phrases.jsonl", encoding="utf-8"
-        )
+    n_rules = len(
+        (ROOT / "data/compositional/vi_compositional_phrases.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
     )
     n_bench = sum(
-        1
+        len(p.read_text(encoding="utf-8").splitlines())
         for p in (ROOT / "data/benchmarks").glob("*.jsonl")
-        for _ in open(p, encoding="utf-8")
     )
     print(f"rules={n_rules} benchmark_rows={n_bench}")
     print(f"fast={FAST_MODEL} fallback={FALLBACK_MODEL}")
     print(f"judge={JUDGE_MODEL} swap={JUDGE_SWAP}")
     bad = []
     for p in (ROOT / "data/compositional").glob("*.jsonl"):
-        for line in open(p, encoding="utf-8"):
+        for line in p.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
             r = json.loads(line)
             ce = r["contrastive_examples"]
             if len(ce["benign"]) < 2 or len(ce["toxic"]) < 2:

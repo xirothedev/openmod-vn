@@ -6,7 +6,10 @@ Every record in `data/**/*.jsonl` must carry `source`, `source_url`, `license`, 
 | ---- | ------ | ------- | --- |
 | `data/compositional/*`, `data/benchmarks/*` seed v0 | `synthetic-seed-v0` (written for this repo) | CC-BY-SA-4.0 | Seed contrastive rules, human-review before release |
 | `data/raw_lexicons/vi/*.jsonl` seed v0 | `synthetic-seed-v0` (written for this repo) | CC-BY-SA-4.0 | Seed lexicon + whitelist, human-review before release |
-| Lexicon hints cross-check | https://github.com/blue-eyes-vn/vietnamese-offensive-words | MIT | Reference only, attribute repo |
+| `data/raw_lexicons/vi/offensive_words_import.jsonl` (430 terms) | https://github.com/blue-eyes-vn/vietnamese-offensive-words | MIT | Imported, all `requires_context_check=true` + `needs-review`, human-verify before BLOCK |
+| `data/benchmarks/vihos_spans.jsonl` (span rows) | https://github.com/phusroyal/vihos | MIT | Imported span rows as OFFENSIVE seeds, label noise possible, review before release |
+| `data/benchmarks/hatecheck_vi_templates.jsonl` (18) | HateCheck adapted to Vietnamese, https://github.com/paul-rottger/hatecheck-data | CC-BY-4.0 | Fresh VI labels, cite Röttger et al. 2021 |
+| Raw downloads (not bundled) | `data/_staging/` (gitignored) | per-source | Methodology reference only |
 | `data/raw_lexicons/vi/safe_whitelist.jsonl` | `synthetic-seed-v0` | CC-BY-SA-4.0 | Scunthorpe defense |
 | Span methodology | Hoang et al. 2023 ViHOS https://arxiv.org/abs/2301.10186 | MIT (code+data) | Span schema reference, not bundled |
 | Functional test methodology | Röttger et al. 2021 HateCheck https://arxiv.org/abs/2012.15606 | CC-BY-4.0 | Template structure adapted to VI, re-labeled |

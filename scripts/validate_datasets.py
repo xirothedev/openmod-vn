@@ -19,7 +19,7 @@ def load(p: Path) -> list[dict]:
             if line:
                 try:
                     out.append(json.loads(line))
-                except Exception as e:
+                except json.JSONDecodeError as e:
                     print(f"FAIL {p}:{i} bad json: {e}")
                     raise SystemExit(1)
     return out
