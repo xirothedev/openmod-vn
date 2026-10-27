@@ -86,6 +86,15 @@ ONNX opset17, dynamic int8 quant. Gate: p99 <15ms CPU batch1 seq96, schema-valid
 
 Judge corrections → encoder set, refresh weekly. V1 chỉ cần đường thu thập log, chưa cần cron.
 
+## 6. Step 0–1 results (2026-10-27, bvpt3)
+
+- Snapshot: `~/openmod-train/ROLLBACK.txt`. RAM 48Gi khả dụng, GPU ~30GB đang dùng. Không dừng service.
+- Venv `~/venvs/openmod-train`: peft 0.21.2, bitsandbytes 0.50.2, optimum 2.1.0, torch 2.14.1, transformers 4.57.6.
+- License gate (`~/openmod-train/LICENSE-GATE.txt`): Qwen3-0.6B/4B Apache-2.0 OK;
+  xlm-roberta-base MIT OK → prod fallback v1; videberta-xsmall không license → eval-only.
+- `--check`: READY (13 rules, 4865 rows). `--smoke`: PASS, RAM không đổi.
+- Tokenizer trial: xlm-roberta vocab 250002 OK, videberta vocab 128000 OK.
+
 ## 5. Done criteria v1
 
 - `data/l3_vi.jsonl` có review, validator xanh, 17 tests + ruff sạch.
