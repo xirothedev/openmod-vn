@@ -112,6 +112,16 @@ Best hybrid F1 = xlm-r τ=0.7 (P 0.227, R 0.595, F1 0.33). No point is auto-bloc
 Decision: ship encoder as **shadow sidecar** (default `shadow=True`, rationale-annotated,
 heuristic still decides); collect diffs → hard negatives → v2. Gate 15ms stands, unmet.
 
+## 8. v2 notes (2026-10-28)
+
+- License videberta: repo `Fsoft-AIC/ViDeBERTa` LICENSE = MIT (code), but HF weights
+  card declares nothing. Options: (a) prod-use with attribution + note, (b) ask Fsoft-AIC
+  for a license tag. Decision pending with user.
+- Shadow mining (xlm-r, 9918 train texts): encoder FP on 4158 teacher-ALLOW rows
+  (over-flags clean text), FN on 72 teacher-BLOCK rows. Fix path: temperature scaling
+  (added `temperature` to judge + pipeline) fit on held-out eval, not retrain alone.
+- v2 retrain: xlm-r on 9918 rows (S5 included), then fit T + re-bench clean.
+
 ## 5. Done criteria v1
 
 - `data/l3_vi.jsonl` có review, validator xanh, 17 tests + ruff sạch.

@@ -33,6 +33,7 @@ class CorePipeline:
         encoder_veto_conf: float = 0.8,
         encoder_flag_conf: float = 0.7,
         shadow: bool = True,
+        encoder_temperature: float = 1.0,
     ):
         root = data_dir or (_repo_root() / "data")
         lexdir = root / "raw_lexicons" / "vi"
@@ -47,7 +48,11 @@ class CorePipeline:
         self.whitelist = {w["term"].lower() for w in white}
         self.detector = CompositionalDetector(rules)
         self.judge = HeuristicContextJudge()
-        self.encoder = TransformerSpanJudge(encoder_dir) if encoder_dir else None
+        self.encoder = (
+            TransformerSpanJudge(encoder_dir, temperature=encoder_temperature)
+            if encoder_dir
+            else None
+        )
         self.encoder_veto_conf = encoder_veto_conf
         self.encoder_flag_conf = encoder_flag_conf
         self.shadow = shadow

@@ -29,7 +29,7 @@ class FakeEncoder:
 
 
 def make_pipe(monkeypatch, encoder, **kw):
-    monkeypatch.setattr(pipe_mod, "TransformerSpanJudge", lambda model_dir: encoder)
+    monkeypatch.setattr(pipe_mod, "TransformerSpanJudge", lambda model_dir, **kw: encoder)
     return CorePipeline(encoder_dir="/tmp/l3", **kw)
 
 

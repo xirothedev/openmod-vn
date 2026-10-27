@@ -134,8 +134,9 @@ class TransformerSpanJudge:
     CLS_LABELS = ("ALLOW", "BORDERLINE", "BLOCK")
     SEVERITY: ClassVar = {"ALLOW": 0, "BORDERLINE": 2, "BLOCK": 3}
 
-    def __init__(self, model_dir: str | Path | None = None):
+    def __init__(self, model_dir: str | Path | None = None, temperature: float = 1.0):
         self.model_dir = Path(model_dir) if model_dir else None
+        self.temperature = temperature
         self._session = None
         self._tokenizer = None
 
@@ -220,7 +221,7 @@ class TransformerSpanJudge:
             )
             cls_logits = cls_logits[0]
             top = max(cls_logits)
-            exps = [math.exp(float(v) - float(top)) for v in cls_logits]
+            exps = [math.exp((float(v) - float(top)) / self.temperature) for v in cls_logits]
             total = sum(exps)
             best = max(range(3), key=lambda i: exps[i])
             tags = [
@@ -259,7 +260,7 @@ class TransformerSpanJudge:
             )
             cls_logits = cls_logits[0]
             top = max(cls_logits)
-            exps = [math.exp(float(v) - float(top)) for v in cls_logits]
+            exps = [math.exp((float(v) - float(top)) / self.temperature) for v in cls_logits]
             total = sum(exps)
             best = max(range(3), key=lambda i: exps[i])
             confidence = exps[best] / total
