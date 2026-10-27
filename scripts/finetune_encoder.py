@@ -23,6 +23,20 @@ LABEL2ID = {l: i for i, l in enumerate(LABELS)}
 CLS_LABELS = LABELS
 BIO_LABELS = ["O", "B", "I"]
 
+SLICES = {
+    "religion": ["chùa", "nhà thờ", "thiên chúa", "hồi giáo", "phật", "cha xứ", "sư "],
+    "gender": ["phụ nữ", "đàn bà", "đàn ông", "lgbt", "gay ", "les ", "bê đê", "pê đê"],
+    "region": [
+        "bắc kỳ",
+        "nam kỳ",
+        "trung kỳ",
+        "miền núi",
+        "miền tây",
+        "nghệ ",
+        "thanh hóa",
+    ],
+}
+
 
 def load_rows(path: Path) -> list[dict]:
     return [
@@ -103,6 +117,9 @@ def main() -> int:
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--skip-export", action="store_true")
     ap.add_argument("--export-only", action="store_true")
+    ap.add_argument("--focal-gamma", type=float, default=2.0)
+    ap.add_argument("--no-focal", action="store_true")
+    ap.add_argument("--balanced", action="store_true")
     a = ap.parse_args()
 
     import torch
@@ -138,15 +155,38 @@ def main() -> int:
 
     net = Judge().to(device)
     dist = Counter(r["label"] for r in train_rows)
-    cw = torch.tensor(
+    alpha = torch.tensor(
         [len(train_rows) / dist[l] for l in LABELS], dtype=torch.float32
     ).to(device)
-    ce = nn.CrossEntropyLoss(weight=cw)
+    gamma = a.focal_gamma
+    use_focal = not a.no_focal
+
+    def focal_ce(logits, target, weight):
+        logp = torch.nn.functional.log_softmax(logits, dim=-1)
+        pt = logp.gather(1, target.unsqueeze(1)).squeeze(1).exp()
+        at = weight[target]
+        if use_focal:
+            return (
+                -(
+                    at
+                    * (1 - pt) ** gamma
+                    * logp.gather(1, target.unsqueeze(1)).squeeze(1)
+                )
+            ).mean()
+        return torch.nn.functional.nll_loss(logp, target, weight=weight)
+
     opt = torch.optim.AdamW(net.parameters(), lr=a.lr)
     scaler = torch.cuda.amp.GradScaler(enabled=(device == "cuda"))
 
-    def batchify(rs, shuffle):
+    def batchify(rs, shuffle, balanced=False):
         idx = list(range(len(rs)))
+        if balanced:
+            per: dict[int, list[int]] = {}
+            for j in idx:
+                per.setdefault(LABEL2ID[rs[j]["label"]], []).append(j)
+            target = max(len(v) for v in per.values())
+            rng = random.Random(a.seed)
+            idx = [j for v in per.values() for j in rng.choices(v, k=target)]
         if shuffle:
             random.Random(a.seed).shuffle(idx)
         for i in range(0, len(idx), a.micro_batch):
@@ -176,10 +216,29 @@ def main() -> int:
             pred += logits.argmax(-1).tolist()
         mf1, f1s = macro_f1(gold, pred)
         acc = sum(g == p for g, p in zip(gold, pred)) / len(gold)
-        return mf1, f1s, acc
+        slices = {}
+        for name, kws in SLICES.items():
+            idx = [
+                i
+                for i, r in enumerate(eval_rows)
+                if any(k in r["text"].lower() for k in kws)
+            ]
+            if len(idx) >= 10:
+                g = [gold[i] for i in idx]
+                p = [pred[i] for i in idx]
+                sm, _ = macro_f1(g, p)
+                slices[name] = {
+                    "n": len(idx),
+                    "mf1": sm,
+                    "acc": sum(a == b for a, b in zip(g, p)) / len(idx),
+                }
+            else:
+                slices[name] = {"n": len(idx)}
+        return mf1, f1s, acc, slices
 
     best, best_state = -1.0, None
     step = 0
+    bio_alpha = torch.ones(3, dtype=torch.float32).to(device)
     if a.export_only:
         best_state = torch.load(out / "best.pt", map_location="cpu", weights_only=True)
         net.load_state_dict({k: v.to(device) for k, v in best_state.items()})
@@ -187,11 +246,14 @@ def main() -> int:
     else:
         for ep in range(a.epochs):
             net.train()
-            for bi, (ids, mask, tags, labs) in enumerate(batchify(train_rows, True)):
+            for bi, (ids, mask, tags, labs) in enumerate(
+                batchify(train_rows, True, balanced=a.balanced)
+            ):
                 with torch.cuda.amp.autocast(enabled=(device == "cuda")):
                     logits, bio = net(ids, mask)
                     loss = (
-                        ce(logits, labs) + ce(bio.view(-1, 3), tags.view(-1))
+                        focal_ce(logits, labs, alpha)
+                        + focal_ce(bio.view(-1, 3), tags.view(-1), bio_alpha)
                     ) / a.grad_accum
                 scaler.scale(loss).backward()
                 if (bi + 1) % a.grad_accum == 0:
@@ -201,7 +263,7 @@ def main() -> int:
                     scaler.update()
                     opt.zero_grad()
                     step += 1
-            mf1, f1s, acc = evaluate()
+            mf1, f1s, acc, slices = evaluate()
             print(
                 f"bakeoff: epoch={ep + 1} mf1={mf1:.4f} f1={f1s} acc={acc:.4f}",
                 flush=True,
@@ -213,12 +275,15 @@ def main() -> int:
         torch.save(best_state, out / "best.pt")
         net.load_state_dict({k: v.to(device) for k, v in best_state.items()})
 
-    mf1, f1s, acc = evaluate()
+    mf1, f1s, acc, slices = evaluate()
     metrics = {
         "model": a.model,
         "mf1": mf1,
         "f1_per_class": dict(zip(CLS_LABELS, f1s)),
         "acc": acc,
+        "slices": slices,
+        "focal_gamma": gamma if use_focal else 0.0,
+        "balanced": a.balanced,
         "n_train": len(train_rows),
         "n_eval": len(eval_rows),
         "eff_batch": a.micro_batch * a.grad_accum,
@@ -227,6 +292,7 @@ def main() -> int:
 
     if not a.skip_export:
         try:
+            import onnx
             from onnxruntime.quantization import QuantType, quantize_dynamic
 
             net.load_state_dict({k: v.to(device) for k, v in best_state.items()})
@@ -245,8 +311,8 @@ def main() -> int:
                     return self.m(ids, mask)[0]
 
             onnx_path = out / "model.onnx"
-            # Fixed batch1 shapes (gate measures batch1 seq96): friendlier to
-            # shape inference than dynamic axes.
+            # Dynamo exporter + cleared value_info: torch.onnx writes bad shape
+            # annotations that break ORT shape inference during quantize.
             torch.onnx.export(
                 ClsOnly(net),
                 (dummy["ids"], dummy["mask"]),
@@ -254,9 +320,14 @@ def main() -> int:
                 input_names=["ids", "mask"],
                 output_names=["logits"],
                 opset_version=17,
+                dynamo=True,
             )
+            clean = onnx.load(str(onnx_path))
+            del clean.graph.value_info[:]
+            clean_path = out / "model.clean.onnx"
+            onnx.save(clean, str(clean_path))
             quantize_dynamic(
-                str(onnx_path),
+                str(clean_path),
                 str(out / "model.int8.onnx"),
                 weight_type=QuantType.QInt8,
             )
