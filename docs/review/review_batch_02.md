@@ -37,4 +37,3 @@ Rule: approve = severity 3 unconditional BLOCK. Reject = stays context-check + n
 - [ ] `dellnoinhieu`
 
 ## Remaining queue: 353 terms for batches 03+.
-
