@@ -10,6 +10,8 @@ def test_health():
 
 
 def test_moderate_endpoint():
-    r = c.post("/moderate", json={"text": "Đi chăn rau sạch khu Cầu Giấy"})
+    r = c.post(
+        "/moderate", json={"text": "Đi chăn rau khu Cầu Giấy, cho xin số điện thoại em nhé?"}
+    )
     assert r.status_code == 200
     assert r.json()["action"] in ("WARN", "BLOCK", "MASK")

@@ -25,6 +25,13 @@ class ModerationDecision(BaseModel):
     rationale: str = ""
 
 
+POLICIES: dict[str, dict[str, int]] = {
+    "kid_safe": {"escalate": 3, "block": 2, "warn": 1},
+    "standard_social": {"escalate": 4, "block": 3, "warn": 2},
+    "relaxed_gaming": {"escalate": 5, "block": 4, "warn": 3},
+}
+
+
 class HeuristicContextJudge:
     def decide(
         self,
@@ -33,6 +40,7 @@ class HeuristicContextJudge:
         lex_hits: list,
         candidates: list,
         whitelist_terms: set[str] | None = None,
+        policy: str = "standard_social",
     ) -> ModerationDecision:
         spans: list[DetectedSpan] = []
         severity = 0
@@ -86,11 +94,12 @@ class HeuristicContextJudge:
                 rationale="clean",
             )
         action: Action
-        if severity >= 4:
+        th = POLICIES.get(policy, POLICIES["standard_social"])
+        if severity >= th["escalate"]:
             action = "ESCALATE"
-        elif severity == 3:
+        elif severity >= th["block"]:
             action = "BLOCK"
-        elif severity == 2:
+        elif severity >= th["warn"]:
             action = "WARN"
         else:
             action = "MASK"

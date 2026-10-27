@@ -56,6 +56,16 @@ def main() -> None:
                 if len(ce.get("benign", [])) < 2 or len(ce.get("toxic", [])) < 2:
                     print(f"FAIL {i} needs 2+2 contrastive examples")
                     raise SystemExit(1)
+                toks = [str(t).lower() for t in d.get("tokens", [])]
+                for side in ("benign", "toxic"):
+                    for ex in ce.get(side, []):
+                        low = str(ex).lower()
+                        missing = [t for t in toks if t not in low]
+                        if missing:
+                            print(
+                                f"FAIL {i} {side} example misses tokens {missing}: {ex[:60]}"
+                            )
+                            raise SystemExit(1)
                 if d.get("individual_tokens_clean") is not True:
                     print(f"FAIL {i} individual_tokens_clean must be true")
                     raise SystemExit(1)

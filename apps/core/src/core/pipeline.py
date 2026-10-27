@@ -36,7 +36,7 @@ class CorePipeline:
         self.detector = CompositionalDetector(rules)
         self.judge = HeuristicContextJudge()
 
-    def moderate(self, text: str) -> ModerationDecision:
+    def moderate(self, text: str, policy: str = "standard_social") -> ModerationDecision:
         n = normalize(text)
         # whitelist suppression: drop hits covered by benign text
         hits = [
@@ -44,4 +44,4 @@ class CorePipeline:
         ]
         # extra guard: if norm itself contains whitelist phrase, suppress overlapping hits
         cands = self.detector.detect(n.norm, n.align)
-        return self.judge.decide(text, n.norm, hits, cands, self.whitelist)
+        return self.judge.decide(text, n.norm, hits, cands, self.whitelist, policy)
