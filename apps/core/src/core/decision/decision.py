@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Literal
+import math
+from pathlib import Path
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
@@ -122,13 +124,118 @@ class HeuristicContextJudge:
 
 
 class TransformerSpanJudge:
-    def __init__(self, model_id: str = "Fsoft-AIC/videberta-xsmall"):
-        self.model_id = model_id
+    """ONNX-backed L3 encoder judge (replaces the v0 stub).
 
-    def decide(self, *args, **kwargs) -> ModerationDecision:
-        raise NotImplementedError(
-            "Transformer judge is a lazy stub in v0; wire weights in docs/training"
+    Loads ``model_dir/model.int8.onnx`` + ``tokenizer.json`` lazily on first
+    :meth:`decide`. Any load/inference failure raises RuntimeError — callers
+    (pipeline) own the fallback to :class:`HeuristicContextJudge`.
+    """
+
+    CLS_LABELS = ("ALLOW", "BORDERLINE", "BLOCK")
+    SEVERITY: ClassVar = {"ALLOW": 0, "BORDERLINE": 2, "BLOCK": 3}
+
+    def __init__(self, model_dir: str | Path | None = None):
+        self.model_dir = Path(model_dir) if model_dir else None
+        self._session = None
+        self._tokenizer = None
+
+    def _load(self):
+        if self._session is not None:
+            return
+        if self.model_dir is None:
+            raise RuntimeError("TransformerSpanJudge: no model_dir configured")
+        try:
+            import onnxruntime as ort
+            from tokenizers import Tokenizer
+        except ImportError as e:
+            raise RuntimeError(f"TransformerSpanJudge: missing dependency: {e}") from e
+        try:
+            self._tokenizer = Tokenizer.from_file(str(self.model_dir / "tokenizer.json"))
+            self._session = ort.InferenceSession(
+                str(self.model_dir / "model.int8.onnx"),
+                providers=["CPUExecutionProvider"],
+            )
+        except Exception as e:
+            raise RuntimeError(f"TransformerSpanJudge: load failed: {e}") from e
+
+    def decide(self, text: str, policy: str = "standard_social") -> ModerationDecision:
+        self._load()
+        try:
+            import numpy as np
+
+            enc = self._tokenizer.encode(text)
+            ids = enc.ids[:96] + [0] * max(0, 96 - len(enc.ids))
+            mask = [1] * min(len(enc.ids), 96) + [0] * max(0, 96 - len(enc.ids))
+            cls_logits, bio_logits = self._session.run(
+                None,
+                {
+                    "ids": np.array([ids], dtype=np.int64),
+                    "mask": np.array([mask], dtype=np.int64),
+                },
+            )
+            cls_logits = cls_logits[0]
+            top = max(cls_logits)
+            exps = [math.exp(float(v) - float(top)) for v in cls_logits]
+            total = sum(exps)
+            best = max(range(3), key=lambda i: exps[i])
+            confidence = exps[best] / total
+            label = self.CLS_LABELS[best]
+            severity = self.SEVERITY[label]
+            offsets = enc.offsets[:96]
+            tags = [
+                int(max(range(3), key=lambda c: bio_logits[0][i][c])) for i in range(len(offsets))
+            ]
+        except Exception as e:
+            raise RuntimeError(f"TransformerSpanJudge: inference failed: {e}") from e
+        spans: list[DetectedSpan] = []
+        if label != "ALLOW":
+            for s, e in self._bio_spans(text, offsets, tags):
+                spans.append(
+                    DetectedSpan(
+                        start=s,
+                        end=e,
+                        text=text[s:e],
+                        category="MODEL_SPAN",
+                        explanation=f"encoder {label} conf={confidence:.2f}",
+                    )
+                )
+        th = POLICIES.get(policy, POLICIES["standard_social"])
+        if label == "ALLOW":
+            action: Action = "ALLOW"
+        elif severity >= th["block"]:
+            action = "BLOCK"
+        elif severity >= th["warn"]:
+            action = "WARN"
+        else:
+            action = "MASK"
+        return ModerationDecision(
+            action=action,
+            overall_severity=severity,
+            confidence=confidence,
+            detected_spans=spans,
+            masked_text=text,
+            rationale=f"encoder {label}",
         )
+
+    @staticmethod
+    def _bio_spans(
+        text: str, offsets: list[tuple[int, int]], tags: list[int]
+    ) -> list[tuple[int, int]]:
+        spans: list[tuple[int, int]] = []
+        start: int | None = None
+        prev = 0
+        for (s, e), t in zip(offsets, tags):
+            if t == 1 or (t == 2 and start is None):
+                if start is not None:
+                    spans.append((start, prev))
+                start = s
+            elif t == 0 and start is not None:
+                spans.append((start, prev))
+                start = None
+            prev = e
+        if start is not None:
+            spans.append((start, prev))
+        return [(s, e) for s, e in spans if 0 <= s < e <= len(text)]
 
 
 class LLMDecisionJudge:

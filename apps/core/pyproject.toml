@@ -9,6 +9,8 @@ dependencies = [
   "fastapi>=0.110",
   "uvicorn>=0.29",
   "ahocorasick-rs>=1.0.3",
+  "onnxruntime>=1.18",
+  "tokenizers>=0.15",
 ]
 
 [project.optional-dependencies]

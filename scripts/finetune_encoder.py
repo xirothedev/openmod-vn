@@ -308,7 +308,8 @@ def main() -> int:
                     self.m = m
 
                 def forward(self, ids, mask):
-                    return self.m(ids, mask)[0]
+                    cls, bio = self.m(ids, mask)
+                    return cls, bio
 
             onnx_path = out / "model.onnx"
             # Dynamo exporter + cleared value_info: torch.onnx writes bad shape
@@ -318,7 +319,7 @@ def main() -> int:
                 (dummy["ids"], dummy["mask"]),
                 str(onnx_path),
                 input_names=["ids", "mask"],
-                output_names=["logits"],
+                output_names=["logits", "bio"],
                 opset_version=17,
                 dynamo=True,
             )
