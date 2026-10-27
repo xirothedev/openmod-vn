@@ -8,7 +8,7 @@ Every record in `data/**/*.jsonl` must carry `source`, `source_url`, `license`, 
 | `data/raw_lexicons/vi/*.jsonl` seed v0 | `synthetic-seed-v0` (written for this repo) | CC-BY-SA-4.0 | Seed lexicon + whitelist, human-review before release |
 | `data/raw_lexicons/vi/offensive_words_import.jsonl` (430 terms) | https://github.com/blue-eyes-vn/vietnamese-offensive-words | MIT | Imported, all `requires_context_check=true` + `needs-review`, human-verify before BLOCK |
 | `data/benchmarks/vihos_spans.jsonl` (span rows) | https://github.com/phusroyal/vihos | MIT | Imported span rows as OFFENSIVE seeds, label noise possible, review before release |
-| `data/l3_vi.jsonl` (9771 rows, review batch 03) | ViHOS texts (MIT, above) teacher-labeled offline by ViHateT5 (research-only, weights never bundled), human-approved slices only | MIT (source texts) | L3 encoder train; 147 political rows held out, 32 weak rows dropped |
+| `data/l3_vi.jsonl` (9918 rows, review batch 03 + S5) | ViHOS texts (MIT, above) teacher-labeled offline by ViHateT5 (research-only, weights never bundled), human-approved slices only | MIT (source texts) | L3 encoder train; S5 political 147 rows included, 32 weak rows dropped |
 | `data/benchmarks/hatecheck_vi_templates.jsonl` (18) | HateCheck adapted to Vietnamese, https://github.com/paul-rottger/hatecheck-data | CC-BY-4.0 | Fresh VI labels, cite Röttger et al. 2021 |
 | Raw downloads (not bundled) | `data/_staging/` (gitignored) | per-source | Methodology reference only |
 | `data/raw_lexicons/vi/safe_whitelist.jsonl` | `synthetic-seed-v0` | CC-BY-SA-4.0 | Scunthorpe defense |

@@ -21,9 +21,18 @@ jobs:
       - run: uv run pytest -q
         working-directory: apps/core
       - run: python3 scripts/build_releases.py
+      # Weights (dist/viguard-x/*) are built on bvpt3, not CI: place them in
+      # dist/viguard-x/ before tagging and they ride the same release.
+      # Missing weights do not fail the release (fail_on_unmatched_files: false).
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/openmod.db
             dist/*.csv
+            dist/*.json
+            dist/viguard-x/model.int8.onnx
+            dist/viguard-x/tokenizer.json
+            dist/viguard-x/metrics.json
+            dist/viguard-x/threshold.json
+          fail_on_unmatched_files: false
           generate_release_notes: true

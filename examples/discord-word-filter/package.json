@@ -1,0 +1,16 @@
+{
+  "name": "discord-word-filter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenMod-VN example: discord.js bot filtering toxic messages",
+  "scripts": {
+    "demo": "tsx src/demo.ts",
+    "demo:remote": "MODERATION_MODE=REMOTE_API tsx src/demo.ts",
+    "bot": "tsx src/bot.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "optionalDependencies": {
+    "discord.js": "^14.0.0"
+  }
+}
