@@ -41,7 +41,9 @@ def main() -> int:
 
     base = CorePipeline()
     hybrid = (
-        CorePipeline(encoder_dir=a.encoder_dir, encoder_flag_conf=a.flag_conf)
+        CorePipeline(
+            encoder_dir=a.encoder_dir, encoder_flag_conf=a.flag_conf, shadow=False
+        )
         if a.encoder_dir
         else None
     )

@@ -95,6 +95,23 @@ Judge corrections → encoder set, refresh weekly. V1 chỉ cần đường thu 
 - `--check`: READY (13 rules, 4865 rows). `--smoke`: PASS, RAM không đổi.
 - Tokenizer trial: xlm-roberta vocab 250002 OK, videberta vocab 128000 OK.
 
+## 7. Bake-off + clean-bench results (2026-10-27/28, bvpt3)
+
+Encoder v2 (focal γ=2 + balanced, dual-head CLS+BIO, ONNX dynamo + int8):
+
+| model | MF1 (976 eval) | BORDERLINE F1 | int8 p99 CPU b1/s96 |
+| --- | --- | --- | --- |
+| xlm-roberta-base | 0.823 | 0.733 | 24.9ms |
+| videberta-xsmall | 0.781 | 0.641 | 19.4ms |
+
+Benchmarks 4865 rows overlap train 96.6% → recall numbers inflated, ranking only:
+xlm-r τ=0.5 (FP 13, FN 378) > videberta τ=0.5 (FP 15, FN 917).
+
+Clean eval, ViHSD test 6680 (overlap 18%, eval-only permitted): heuristic P 0.986/R 0.115.
+Best hybrid F1 = xlm-r τ=0.7 (P 0.227, R 0.595, F1 0.33). No point is auto-block safe.
+Decision: ship encoder as **shadow sidecar** (default `shadow=True`, rationale-annotated,
+heuristic still decides); collect diffs → hard negatives → v2. Gate 15ms stands, unmet.
+
 ## 5. Done criteria v1
 
 - `data/l3_vi.jsonl` có review, validator xanh, 17 tests + ruff sạch.

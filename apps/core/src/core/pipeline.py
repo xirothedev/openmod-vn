@@ -32,6 +32,7 @@ class CorePipeline:
         encoder_dir: Path | str | None = None,
         encoder_veto_conf: float = 0.8,
         encoder_flag_conf: float = 0.7,
+        shadow: bool = True,
     ):
         root = data_dir or (_repo_root() / "data")
         lexdir = root / "raw_lexicons" / "vi"
@@ -49,6 +50,7 @@ class CorePipeline:
         self.encoder = TransformerSpanJudge(encoder_dir) if encoder_dir else None
         self.encoder_veto_conf = encoder_veto_conf
         self.encoder_flag_conf = encoder_flag_conf
+        self.shadow = shadow
 
     def moderate(self, text: str, policy: str = "standard_social") -> ModerationDecision:
         n = normalize(text)
@@ -60,13 +62,24 @@ class CorePipeline:
         cands = self.detector.detect(n.norm, n.align)
         decision = self.judge.decide(text, n.norm, hits, cands, self.whitelist, policy)
         if self.encoder is not None:
-            if decision.detected_spans:
+            if self.shadow:
+                self._shadow_note(text, policy, decision)
+            elif decision.detected_spans:
                 decision = self._encoder_veto(text, n.norm, hits, cands, decision, policy)
             else:
                 flagged = self._encoder_flag(text, policy)
                 if flagged is not None:
                     decision = flagged
         return decision
+
+    def _shadow_note(self, text: str, policy: str, decision: ModerationDecision) -> None:
+        """Run the encoder sidecar: annotate rationale, never change behavior."""
+        assert self.encoder is not None
+        try:
+            enc = self.encoder.decide(text, policy)
+            decision.rationale += f" | shadow encoder={enc.action} conf={enc.confidence:.2f}"
+        except Exception:  # noqa: BLE001 - sidecar must never break moderate()
+            decision.rationale += " | shadow encoder=error"
 
     def _encoder_flag(self, text: str, policy: str) -> ModerationDecision | None:
         """Flag text the heuristic missed when the encoder is confident.
