@@ -100,6 +100,8 @@ uv run uvicorn core.api.server:app --port 8000
 
 ## Documentation
 
+- [GitHub Wiki](https://github.com/xirothedev/openmod-vn/wiki) (publish with `scripts/publish-wiki.sh` after first page)
+- [Hosted docs (GitHub Pages)](https://xirothedev.github.io/openmod-vn/)
 - [Wiki: Architecture (L0-L3)](docs/wiki/Architecture.md)
 - [Wiki: API reference](docs/wiki/API-Reference.md)
 - [Wiki: Dataset hub](docs/wiki/Dataset-Hub.md)
