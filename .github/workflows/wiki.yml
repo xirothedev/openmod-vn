@@ -1,0 +1,28 @@
+name: wiki
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish wiki
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          WORK="$(mktemp -d)"
+          git clone "https://x-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" "$WORK/wiki"
+          cp -f docs/wiki/*.md "$WORK/wiki/"
+          cd "$WORK/wiki"
+          git add -A
+          if git diff --cached --quiet; then echo "No changes to publish."; exit 0; fi
+          git commit -m "sync wiki from docs/wiki (${GITHUB_SHA::7})"
+          git push origin HEAD
